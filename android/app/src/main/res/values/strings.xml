@@ -1,0 +1,7 @@
+<?xml version='1.0' encoding='utf-8'?>
+<resources>
+    <string name="app_name">nubapp</string>
+    <string name="title_activity_main">nubapp</string>
+    <string name="package_name">com.fatih.nubapp</string>
+    <string name="custom_url_scheme">com.fatih.nubapp</string>
+</resources>
