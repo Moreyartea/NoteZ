@@ -86,7 +86,7 @@ NoteZ menggunakan konsep **Neo Brutalism** — gaya desain yang menggabungkan:
 
 ```bash
 # Clone repository
-git clone https://github.com/USERNAME/notez.git
+git clone https://github.com/Moreyartea/notez.git
 
 # Masuk ke folder project
 cd notez
@@ -215,7 +215,7 @@ copies or substantial portions of the Software.
 ## Kontak
 
 **Moreyartea**  
-GitHub: [@USERNAME](https://github.com/Moreyartea)
+GitHub: [@Moreyartea](https://github.com/Moreyartea)
 
 ---
 
