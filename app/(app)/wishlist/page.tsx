@@ -12,6 +12,7 @@ import {
 import {
   Wishlist, getWishlists, addWishlist, updateWishlist, deleteWishlist,
 } from "@/app/lib/storage";
+import { createClient } from "@/app/lib/supabase";
 
 export default function WishlistPage() {
   const [wishlists, setWishlists] = useState<Wishlist[]>([]);
@@ -23,9 +24,17 @@ export default function WishlistPage() {
   const [marketplaceUrl, setMarketplaceUrl] = useState("");
   const [priority, setPriority] = useState(3);
   const router = useRouter();
+  const [userId, setUserId] = useState<string | undefined>(undefined);
+  const supabase = createClient();
 
   useEffect(() => {
-    setWishlists(getWishlists());
+    async function init() {
+      const { data: { user } } = await supabase.auth.getUser();
+      const uid = user?.id;
+      setUserId(uid);
+      setWishlists(getWishlists(uid));
+    }
+    init();
   }, []);
 
   function handleSave() {
@@ -38,8 +47,8 @@ export default function WishlistPage() {
       marketplace_url: marketplaceUrl || "",
       priority,
       is_achieved: false,
-    });
-    setWishlists(getWishlists());
+    }, userId);
+    setWishlists(getWishlists(userId));
     setName(""); setTargetPrice(""); setSavedAmount("");
     setImageUrl(""); setMarketplaceUrl(""); setPriority(3);
     setShowForm(false);
@@ -50,18 +59,18 @@ export default function WishlistPage() {
     if (!input) return;
     const add = parseFloat(input);
     if (isNaN(add)) return;
-    updateWishlist(id, { saved_amount: current + add });
-    setWishlists(getWishlists());
+    updateWishlist(id, { saved_amount: current + add }, userId);
+    setWishlists(getWishlists(userId));
   }
 
   function handleAchieve(id: string) {
-    updateWishlist(id, { is_achieved: true });
-    setWishlists(getWishlists());
+    updateWishlist(id, { is_achieved: true }, userId);
+    setWishlists(getWishlists(userId));
   }
 
   function handleDelete(id: string) {
-    deleteWishlist(id);
-    setWishlists(getWishlists());
+    deleteWishlist(id, userId);
+    setWishlists(getWishlists(userId));
   }
 
   function formatRupiah(amount: number) {
@@ -91,7 +100,7 @@ export default function WishlistPage() {
           </div>
         </div>
         <NbButton variant="ghost" size="sm" onClick={() => router.push("/dashboard")}>
-          <IconArrowLeft size={15} /> Dashboard
+          <IconArrowLeft size={15} /> Beranda
         </NbButton>
       </div>
 

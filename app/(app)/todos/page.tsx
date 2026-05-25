@@ -12,6 +12,7 @@ import {
 import {
   Todo, getTodos, addTodo, updateTodo, deleteTodo,
 } from "@/app/lib/storage";
+import { createClient } from "@/app/lib/supabase";
 
 const PRIORITY_CONFIG = {
   high: { bg: "bg-red-100", dot: "bg-red-500", label: "Tinggi" },
@@ -31,28 +32,36 @@ export default function TodosPage() {
   const [deadline, setDeadline] = useState("");
   const [filter, setFilter] = useState<"all" | "active" | "done">("all");
   const router = useRouter();
+  const [userId, setUserId] = useState<string | undefined>(undefined);
+  const supabase = createClient();
 
   useEffect(() => {
-    setTodos(getTodos());
+    async function init() {
+      const { data: { user } } = await supabase.auth.getUser();
+      const uid = user?.id;
+      setUserId(uid);
+      setTodos(getTodos(uid));
+    }
+    init();
   }, []);
 
   function handleSave() {
     if (!title) return;
-    addTodo({ title, description, priority, category, deadline, is_done: false });
-    setTodos(getTodos());
+    addTodo({ title, description, priority, category, deadline, is_done: false }, userId);
+    setTodos(getTodos(userId));
     setTitle(""); setDescription(""); setPriority("med");
     setCategory(""); setDeadline("");
     setShowForm(false);
   }
 
   function handleToggle(id: string, is_done: boolean) {
-    updateTodo(id, { is_done: !is_done });
-    setTodos(getTodos());
+    updateTodo(id, { is_done: !is_done }, userId);
+    setTodos(getTodos(userId));
   }
 
   function handleDelete(id: string) {
-    deleteTodo(id);
-    setTodos(getTodos());
+    deleteTodo(id, userId);
+    setTodos(getTodos(userId));
   }
 
   const filteredTodos = todos.filter((t) =>
@@ -79,7 +88,7 @@ export default function TodosPage() {
           </div>
         </div>
         <NbButton variant="ghost" size="sm" onClick={() => router.push("/dashboard")}>
-          <IconArrowLeft size={15} /> Dashboard
+          <IconArrowLeft size={15} /> Beranda
         </NbButton>
       </div>
 

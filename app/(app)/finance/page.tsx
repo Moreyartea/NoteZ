@@ -14,6 +14,7 @@ import {
 import {
   Transaction, getTransactions, addTransaction, deleteTransaction,
 } from "@/app/lib/storage";
+import { createClient } from "@/app/lib/supabase";
 
 const INCOME_CATEGORIES = ["Gaji", "Freelance", "Bisnis", "Investasi", "Hadiah", "Lainnya"];
 const EXPENSE_CATEGORIES = ["Makanan", "Transport", "Belanja", "Tagihan", "Hiburan", "Kesehatan", "Pendidikan", "Lainnya"];
@@ -43,9 +44,17 @@ export default function FinancePage() {
   const [note, setNote] = useState("");
   const [date, setDate] = useState(new Date().toISOString().split("T")[0]);
   const router = useRouter();
+  const [userId, setUserId] = useState<string | undefined>(undefined);
+  const supabase = createClient();
 
   useEffect(() => {
-    setTransactions(getTransactions());
+    async function init() {
+      const { data: { user } } = await supabase.auth.getUser();
+      const uid = user?.id;
+      setUserId(uid);
+      setTransactions(getTransactions(uid));
+    }
+    init();
   }, []);
 
   function handleSave() {
@@ -53,16 +62,16 @@ export default function FinancePage() {
     addTransaction({
       type, amount: parseFloat(amount),
       category, note: note || "", date,
-    });
-    setTransactions(getTransactions());
+    }, userId);
+    setTransactions(getTransactions(userId));
     setAmount(""); setCategory(""); setNote("");
     setDate(new Date().toISOString().split("T")[0]);
     setShowForm(false);
   }
 
   function handleDelete(id: string) {
-    deleteTransaction(id);
-    setTransactions(getTransactions());
+    deleteTransaction(id, userId);
+    setTransactions(getTransactions(userId));
   }
 
   function formatRupiah(amount: number) {
@@ -96,7 +105,7 @@ export default function FinancePage() {
           </div>
         </div>
         <NbButton variant="ghost" size="sm" onClick={() => router.push("/dashboard")}>
-          <IconArrowLeft size={15} /> Dashboard
+          <IconArrowLeft size={15} /> Beranda
         </NbButton>
       </div>
 

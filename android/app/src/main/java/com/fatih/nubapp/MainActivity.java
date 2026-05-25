@@ -1,4 +1,4 @@
-package com.fatih.nubapp;
+package com.Moreyartea.NoteZ;
 
 import com.getcapacitor.BridgeActivity;
 

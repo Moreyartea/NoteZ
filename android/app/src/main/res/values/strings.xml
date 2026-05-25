@@ -1,7 +1,7 @@
 <?xml version='1.0' encoding='utf-8'?>
 <resources>
-    <string name="app_name">nubapp</string>
-    <string name="title_activity_main">nubapp</string>
-    <string name="package_name">com.fatih.nubapp</string>
-    <string name="custom_url_scheme">com.fatih.nubapp</string>
+    <string name="app_name">NoteZ</string>
+    <string name="title_activity_main">NoteZ</string>
+    <string name="package_name">com.Moreyartea.NoteZ</string>
+    <string name="custom_url_scheme">com.Moreyartea.NoteZ</string>
 </resources>

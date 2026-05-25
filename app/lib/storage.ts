@@ -1,4 +1,3 @@
-// Tipe data
 export interface Todo {
   id: string;
   title: string;
@@ -30,101 +29,92 @@ export interface Wishlist {
   is_achieved: boolean;
 }
 
-// Helper generate ID unik
 export function generateId(): string {
   return Date.now().toString(36) + Math.random().toString(36).substr(2);
 }
 
+// Key helper — pisah data offline vs per-akun
+function key(base: string, userId?: string) {
+  return userId ? `NoteZ_${base}_${userId}` : `NoteZ_${base}`;
+}
+
 // ============ TODO ============
-export function getTodos(): Todo[] {
+export function getTodos(userId?: string): Todo[] {
   if (typeof window === "undefined") return [];
-  const data = localStorage.getItem("nubapp_todos");
+  const data = localStorage.getItem(key("todos", userId));
   return data ? JSON.parse(data) : [];
 }
 
-export function saveTodos(todos: Todo[]): void {
-  localStorage.setItem("nubapp_todos", JSON.stringify(todos));
+export function saveTodos(todos: Todo[], userId?: string): void {
+  localStorage.setItem(key("todos", userId), JSON.stringify(todos));
 }
 
-export function addTodo(todo: Omit<Todo, "id" | "created_at">): Todo {
-  const todos = getTodos();
-  const newTodo: Todo = {
-    ...todo,
-    id: generateId(),
-    created_at: new Date().toISOString(),
-  };
+export function addTodo(todo: Omit<Todo, "id" | "created_at">, userId?: string): Todo {
+  const todos = getTodos(userId);
+  const newTodo: Todo = { ...todo, id: generateId(), created_at: new Date().toISOString() };
   todos.unshift(newTodo);
-  saveTodos(todos);
+  saveTodos(todos, userId);
   return newTodo;
 }
 
-export function updateTodo(id: string, updates: Partial<Todo>): void {
-  const todos = getTodos();
+export function updateTodo(id: string, updates: Partial<Todo>, userId?: string): void {
+  const todos = getTodos(userId);
   const idx = todos.findIndex((t) => t.id === id);
-  if (idx !== -1) {
-    todos[idx] = { ...todos[idx], ...updates };
-    saveTodos(todos);
-  }
+  if (idx !== -1) { todos[idx] = { ...todos[idx], ...updates }; saveTodos(todos, userId); }
 }
 
-export function deleteTodo(id: string): void {
-  const todos = getTodos().filter((t) => t.id !== id);
-  saveTodos(todos);
+export function deleteTodo(id: string, userId?: string): void {
+  saveTodos(getTodos(userId).filter((t) => t.id !== id), userId);
 }
 
 // ============ TRANSAKSI ============
-export function getTransactions(): Transaction[] {
+export function getTransactions(userId?: string): Transaction[] {
   if (typeof window === "undefined") return [];
-  const data = localStorage.getItem("nubapp_transactions");
+  const data = localStorage.getItem(key("transactions", userId));
   return data ? JSON.parse(data) : [];
 }
 
-export function saveTransactions(transactions: Transaction[]): void {
-  localStorage.setItem("nubapp_transactions", JSON.stringify(transactions));
+export function saveTransactions(transactions: Transaction[], userId?: string): void {
+  localStorage.setItem(key("transactions", userId), JSON.stringify(transactions));
 }
 
-export function addTransaction(tx: Omit<Transaction, "id">): Transaction {
-  const transactions = getTransactions();
+export function addTransaction(tx: Omit<Transaction, "id">, userId?: string): Transaction {
+  const transactions = getTransactions(userId);
   const newTx: Transaction = { ...tx, id: generateId() };
   transactions.unshift(newTx);
-  saveTransactions(transactions);
+  saveTransactions(transactions, userId);
   return newTx;
 }
 
-export function deleteTransaction(id: string): void {
-  const transactions = getTransactions().filter((t) => t.id !== id);
-  saveTransactions(transactions);
+export function deleteTransaction(id: string, userId?: string): void {
+  saveTransactions(getTransactions(userId).filter((t) => t.id !== id), userId);
 }
 
 // ============ WISHLIST ============
-export function getWishlists(): Wishlist[] {
+export function getWishlists(userId?: string): Wishlist[] {
   if (typeof window === "undefined") return [];
-  const data = localStorage.getItem("nubapp_wishlists");
+  const data = localStorage.getItem(key("wishlists", userId));
   return data ? JSON.parse(data) : [];
 }
 
-export function saveWishlists(wishlists: Wishlist[]): void {
-  localStorage.setItem("nubapp_wishlists", JSON.stringify(wishlists));
+export function saveWishlists(wishlists: Wishlist[], userId?: string): void {
+  localStorage.setItem(key("wishlists", userId), JSON.stringify(wishlists));
 }
 
-export function addWishlist(item: Omit<Wishlist, "id">): Wishlist {
-  const wishlists = getWishlists();
+export function addWishlist(item: Omit<Wishlist, "id">, userId?: string): Wishlist {
+  const wishlists = getWishlists(userId);
   const newItem: Wishlist = { ...item, id: generateId() };
   wishlists.unshift(newItem);
-  saveWishlists(wishlists);
+  saveWishlists(wishlists, userId);
   return newItem;
 }
 
-export function updateWishlist(id: string, updates: Partial<Wishlist>): void {
-  const wishlists = getWishlists();
+export function updateWishlist(id: string, updates: Partial<Wishlist>, userId?: string): void {
+  const wishlists = getWishlists(userId);
   const idx = wishlists.findIndex((w) => w.id === id);
-  if (idx !== -1) {
-    wishlists[idx] = { ...wishlists[idx], ...updates };
-    saveWishlists(wishlists);
-  }
+  if (idx !== -1) { wishlists[idx] = { ...wishlists[idx], ...updates }; saveWishlists(wishlists, userId); }
 }
 
-export function deleteWishlist(id: string): void {
-  const wishlists = getWishlists().filter((w) => w.id !== id);
-  saveWishlists(wishlists);
+export function deleteWishlist(id: string, userId?: string): void {
+  saveWishlists(getWishlists(userId).filter((w) => w.id !== id), userId);
 }

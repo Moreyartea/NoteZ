@@ -5,10 +5,11 @@ import { useRouter } from "next/navigation";
 import NbCard from "@/components/ui/NbCard";
 import NbButton from "@/components/ui/NbButton";
 import {
-  IconBolt, IconChecklist, IconCoin, IconGift,
+  IconLayoutDashboard, IconChecklist, IconCoin, IconGift,
   IconChartBar, IconWallet, IconHeart,
 } from "@tabler/icons-react";
 import { getTodos, getTransactions, getWishlists } from "@/app/lib/storage";
+import { createClient } from "@/app/lib/supabase";
 
 export default function DashboardPage() {
   const [todoCount, setTodoCount] = useState(0);
@@ -19,25 +20,28 @@ export default function DashboardPage() {
   const router = useRouter();
 
   useEffect(() => {
-    // Ambil data dari localStorage
-    const todos = getTodos();
-    const todayStr = new Date().toISOString().split("T")[0];
-    const todayTodos = todos.filter((t) =>
-      t.created_at.startsWith(todayStr)
-    );
-    setTodoCount(todayTodos.length);
-    setDoneCount(todayTodos.filter((t) => t.is_done).length);
+    async function init() {
+      const { data: { user } } = await createClient().auth.getUser();
+      const uid = user?.id;
 
-    const transactions = getTransactions();
-    const total = transactions.reduce((acc, tx) =>
-      tx.type === "income" ? acc + Number(tx.amount) : acc - Number(tx.amount), 0
-    );
-    setBalance(total);
+      const todos = getTodos(uid);
+      const todayStr = new Date().toISOString().split("T")[0];
+      const todayTodos = todos.filter((t) => t.created_at.startsWith(todayStr));
+      setTodoCount(todayTodos.length);
+      setDoneCount(todayTodos.filter((t) => t.is_done).length);
 
-    const wishlists = getWishlists();
-    setWishlistCount(wishlists.filter((w) => !w.is_achieved).length);
+      const transactions = getTransactions(uid);
+      const total = transactions.reduce((acc, tx) =>
+        tx.type === "income" ? acc + Number(tx.amount) : acc - Number(tx.amount), 0
+      );
+      setBalance(total);
 
-    setLoading(false);
+      const wishlists = getWishlists(uid);
+      setWishlistCount(wishlists.filter((w) => !w.is_achieved).length);
+
+      setLoading(false);
+    }
+    init();
   }, []);
 
   function formatRupiah(amount: number) {
@@ -66,10 +70,10 @@ export default function DashboardPage() {
       <div className="border-2 border-nb-black bg-nb-black rounded-xl shadow-[4px_4px_0px_#0A0A0A] p-4 mb-6 flex items-center justify-between">
         <div className="flex items-center gap-3">
           <div className="bg-nb-yellow border-2 border-nb-black rounded-lg p-2">
-            <IconBolt size={20} className="text-nb-black" />
+            <IconLayoutDashboard size={20} className="text-nb-black" />
           </div>
           <div>
-            <div className="text-nb-yellow font-bold text-base">NubApp</div>
+            <div className="text-nb-yellow font-bold text-base">NoteZ</div>
             <div className="text-white/50 text-xs font-medium mt-0.5">
               Selamat datang!
             </div>
@@ -145,8 +149,8 @@ export default function DashboardPage() {
       {/* Footer */}
       <NbCard color="black">
         <div className="flex items-center justify-center gap-2 text-nb-green text-xs font-bold">
-          <IconBolt size={14} />
-          NubApp v1.0 — Data tersimpan di perangkat
+          <IconLayoutDashboard size={14} />
+          NoteZ v1.1 — Data tersimpan di perangkat
         </div>
       </NbCard>
 
