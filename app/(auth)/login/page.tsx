@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import { useState, useSyncExternalStore } from "react";
 import { createClient } from "@/app/lib/supabase";
 import { useRouter } from "next/navigation";
 import NbButton from "@/components/ui/NbButton";
@@ -8,29 +8,32 @@ import NbInput from "@/components/ui/NbInput";
 import NbCard from "@/components/ui/NbCard";
 import { IconArrowLeft, IconEye, IconEyeOff } from "@tabler/icons-react";
 
+function subscribeUrl(callback: () => void) {
+  window.addEventListener("popstate", callback);
+  return () => window.removeEventListener("popstate", callback);
+}
+
+function getUrlSnapshot() {
+  return window.location.search + window.location.hash;
+}
+
+function getServerSnapshot() {
+  return "";
+}
+
 export default function LoginPage() {
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState("");
   const [showPassword, setShowPassword] = useState(false);
-  const [isVerified, setIsVerified] = useState(false);
-  const [isPending, setIsPending] = useState(false);
   const router = useRouter();
   const supabase = createClient();
 
-  useEffect(() => {
-    if (typeof window !== "undefined") {
-      const params = new URLSearchParams(window.location.search);
-      // Cek query parameter "verified" atau hash bawaan supabase "type=signup"
-      if (params.get("verified") === "true" || window.location.hash.includes("type=signup")) {
-        setIsVerified(true);
-      }
-      if (params.get("pending") === "true") {
-        setIsPending(true);
-      }
-    }
-  }, []);
+  const urlState = useSyncExternalStore(subscribeUrl, getUrlSnapshot, getServerSnapshot);
+  const isVerified = urlState.includes("verified=true") || urlState.includes("type=signup");
+  const isPending = urlState.includes("pending=true");
+
 
   async function handleLogin(e: React.FormEvent) {
     e.preventDefault();

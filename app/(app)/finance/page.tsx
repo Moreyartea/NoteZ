@@ -245,7 +245,8 @@ export default function FinancePage() {
                       {tx.type === "income" ? "+" : "−"}{formatRupiah(Number(tx.amount))}
                     </span>
                     <button onClick={() => handleDelete(tx.id)}
-                      className="border-2 border-nb-black rounded-lg p-1.5 bg-white hover:bg-nb-pink hover:text-white transition-all opacity-0 group-hover:opacity-100">
+                      className="border-2 border-nb-black rounded-lg p-1.5 bg-white hover:bg-nb-pink hover:text-white transition-all opacity-100 md:opacity-0 md:group-hover:opacity-100"
+                      aria-label="Hapus transaksi">
                       <IconTrash size={13} />
                     </button>
                   </div>

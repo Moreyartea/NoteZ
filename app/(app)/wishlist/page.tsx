@@ -281,7 +281,8 @@ export default function WishlistPage() {
                       </a>
                     )}
                     <NbButton variant="ghost" size="sm"
-                      className="opacity-0 group-hover:opacity-100 transition-opacity"
+                      className="opacity-100 md:opacity-0 md:group-hover:opacity-100 transition-opacity"
+                      aria-label="Hapus wishlist"
                       onClick={() => handleDelete(item.id)}>
                       <IconTrash size={14} />
                     </NbButton>

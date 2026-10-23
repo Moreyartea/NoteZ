@@ -226,7 +226,8 @@ export default function TodosPage() {
                   </div>
                 </div>
                 <button onClick={() => handleDelete(todo.id)}
-                  className="border-2 border-nb-black rounded-lg p-1.5 bg-white hover:bg-nb-pink hover:text-white transition-all opacity-0 group-hover:opacity-100 flex-shrink-0">
+                  className="border-2 border-nb-black rounded-lg p-1.5 bg-white hover:bg-nb-pink hover:text-white transition-all opacity-100 md:opacity-0 md:group-hover:opacity-100 flex-shrink-0"
+                  aria-label="Hapus tugas">
                   <IconTrash size={13} />
                 </button>
               </div>

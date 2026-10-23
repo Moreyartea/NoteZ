@@ -22,28 +22,42 @@ export default function AppLayout({ children }: { children: React.ReactNode }) {
   const supabase = createClient();
   const [avatarUrl, setAvatarUrl] = useState<string | null>(null);
 
-  const loadAvatar = async () => {
-    const { data: { user } } = await supabase.auth.getUser();
-    if (!user) {
-      const localProfileStr = localStorage.getItem("notez_profile");
-      if (localProfileStr) {
-        const p = JSON.parse(localProfileStr);
-        setAvatarUrl(p.avatar_url || null);
-      }
-      return;
-    }
-    const { data } = await supabase.from("profiles").select("avatar_url").eq("id", user.id).maybeSingle();
-    if (data?.avatar_url) {
-      setAvatarUrl(data.avatar_url);
-    } else {
-      setAvatarUrl(null);
-    }
-  };
-
   useEffect(() => {
-    loadAvatar();
-    window.addEventListener("profileUpdated", loadAvatar);
-    return () => window.removeEventListener("profileUpdated", loadAvatar);
+    let isMounted = true;
+
+    async function fetchAvatar() {
+      const { data: { user } } = await supabase.auth.getUser();
+      if (!isMounted) return;
+
+      if (!user) {
+        const localProfileStr = localStorage.getItem("notez_profile");
+        if (localProfileStr) {
+          try {
+            const p = JSON.parse(localProfileStr);
+            setAvatarUrl(p.avatar_url || null);
+          } catch {
+            setAvatarUrl(null);
+          }
+        }
+        return;
+      }
+
+      const { data } = await supabase.from("profiles").select("avatar_url").eq("id", user.id).maybeSingle();
+      if (!isMounted) return;
+      setAvatarUrl(data?.avatar_url || null);
+    }
+
+    fetchAvatar();
+
+    const handleUpdate = () => {
+      fetchAvatar();
+    };
+
+    window.addEventListener("profileUpdated", handleUpdate);
+    return () => {
+      isMounted = false;
+      window.removeEventListener("profileUpdated", handleUpdate);
+    };
   }, []);
 
   // Label halaman aktif untuk subjudul
