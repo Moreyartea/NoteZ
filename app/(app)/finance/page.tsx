@@ -35,11 +35,23 @@ const CATEGORY_ICONS: Record<string, { icon: React.ReactNode; bg: string }> = {
   Lainnya:    { icon: <IconCategory size={16} />, bg: "bg-gray-50" },
 };
 
+// ─── Helpers format Rupiah ───────────────────────────────────────────────────
+function toDisplay(raw: string): string {
+  const digits = raw.replace(/\D/g, "");
+  if (!digits) return "";
+  return parseInt(digits).toLocaleString("id-ID");
+}
+
+function toNumber(display: string): number {
+  return parseInt(display.replace(/\./g, "")) || 0;
+}
+// ────────────────────────────────────────────────────────────────────────────
+
 export default function FinancePage() {
   const [transactions, setTransactions] = useState<Transaction[]>([]);
   const [showForm, setShowForm] = useState(false);
   const [type, setType] = useState<"income" | "expense">("expense");
-  const [amount, setAmount] = useState("");
+  const [amountDisplay, setAmountDisplay] = useState("");   // ← tampilan "15.000"
   const [category, setCategory] = useState("");
   const [note, setNote] = useState("");
   const [date, setDate] = useState(new Date().toISOString().split("T")[0]);
@@ -57,14 +69,19 @@ export default function FinancePage() {
     init();
   }, []);
 
+  function handleAmountChange(e: React.ChangeEvent<HTMLInputElement>) {
+    setAmountDisplay(toDisplay(e.target.value));
+  }
+
   function handleSave() {
-    if (!amount || !category || !date) return;
+    const numericAmount = toNumber(amountDisplay);
+    if (!numericAmount || !category || !date) return;
     addTransaction({
-      type, amount: parseFloat(amount),
+      type, amount: numericAmount,
       category, note: note || "", date,
     }, userId);
     setTransactions(getTransactions(userId));
-    setAmount(""); setCategory(""); setNote("");
+    setAmountDisplay(""); setCategory(""); setNote("");
     setDate(new Date().toISOString().split("T")[0]);
     setShowForm(false);
   }
@@ -112,21 +129,15 @@ export default function FinancePage() {
       {/* Stat Cards */}
       <div className="grid grid-cols-1 md:grid-cols-3 gap-3 mb-6">
         <NbCard color="green">
-          <div className="text-xs font-bold uppercase tracking-widest opacity-60 mb-1">
-            Pemasukan
-          </div>
+          <div className="text-xs font-bold uppercase tracking-widest opacity-60 mb-1">Pemasukan</div>
           <div className="text-xl font-black">{formatRupiah(totalIncome)}</div>
         </NbCard>
         <NbCard color="pink">
-          <div className="text-xs font-bold uppercase tracking-widest text-white/60 mb-1">
-            Pengeluaran
-          </div>
+          <div className="text-xs font-bold uppercase tracking-widest text-white/60 mb-1">Pengeluaran</div>
           <div className="text-xl font-black text-white">{formatRupiah(totalExpense)}</div>
         </NbCard>
         <NbCard color={balance >= 0 ? "yellow" : "orange"}>
-          <div className="text-xs font-bold uppercase tracking-widest opacity-60 mb-1">
-            Saldo Bersih
-          </div>
+          <div className="text-xs font-bold uppercase tracking-widest opacity-60 mb-1">Saldo Bersih</div>
           <div className="text-xl font-black">{formatRupiah(balance)}</div>
         </NbCard>
       </div>
@@ -134,12 +145,10 @@ export default function FinancePage() {
       {/* Tombol Tambah */}
       {!showForm && (
         <div className="flex gap-3 mb-6">
-          <NbButton variant="green"
-            onClick={() => { setType("income"); setShowForm(true); }}>
+          <NbButton variant="green" onClick={() => { setType("income"); setShowForm(true); }}>
             <IconPlus size={16} /> Pemasukan
           </NbButton>
-          <NbButton variant="pink"
-            onClick={() => { setType("expense"); setShowForm(true); }}>
+          <NbButton variant="pink" onClick={() => { setType("expense"); setShowForm(true); }}>
             <IconPlus size={16} /> Pengeluaran
           </NbButton>
         </div>
@@ -163,8 +172,15 @@ export default function FinancePage() {
               </button>
             </div>
 
-            <NbInput label="Nominal (Rp)" type="number" placeholder="50000"
-              value={amount} onChange={(e) => setAmount(e.target.value)} />
+            {/* ✅ Input nominal dengan format titik ribuan */}
+            <NbInput
+              label="Nominal (Rp)"
+              type="text"
+              inputMode="numeric"
+              placeholder="0"
+              value={amountDisplay}
+              onChange={handleAmountChange}
+            />
 
             <div className="flex flex-col gap-1.5">
               <label className="text-xs font-bold uppercase tracking-widest text-nb-black/60">
@@ -191,9 +207,7 @@ export default function FinancePage() {
               <NbButton variant="black" size="lg" onClick={handleSave} className="flex-1">
                 Simpan
               </NbButton>
-              <NbButton variant="ghost" onClick={() => setShowForm(false)}>
-                Batal
-              </NbButton>
+              <NbButton variant="ghost" onClick={() => setShowForm(false)}>Batal</NbButton>
             </div>
           </div>
         </NbCard>

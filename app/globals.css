@@ -40,3 +40,16 @@ body {
   transform: translate(2px, 2px);
   box-shadow: 1px 1px 0px #0A0A0A;
 }
+
+@layer base {
+  /* Menyembunyikan panah naik-turun (spinner) bawaan browser */
+  input[type='number']::-webkit-inner-spin-button,
+  input[type='number']::-webkit-outer-spin-button {
+    -webkit-appearance: none;
+    margin: 0;
+  }
+  /* Untuk browser Firefox */
+  input[type='number'] {
+    -moz-appearance: textfield; 
+  }
+}

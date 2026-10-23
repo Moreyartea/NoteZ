@@ -14,15 +14,31 @@ import {
 } from "@/app/lib/storage";
 import { createClient } from "@/app/lib/supabase";
 
+// ─── Helpers format Rupiah ───────────────────────────────────────────────────
+function toDisplay(raw: string): string {
+  const digits = raw.replace(/\D/g, "");
+  if (!digits) return "";
+  return parseInt(digits).toLocaleString("id-ID");
+}
+
+function toNumber(display: string): number {
+  return parseInt(display.replace(/\./g, "")) || 0;
+}
+// ────────────────────────────────────────────────────────────────────────────
+
 export default function WishlistPage() {
   const [wishlists, setWishlists] = useState<Wishlist[]>([]);
   const [showForm, setShowForm] = useState(false);
   const [name, setName] = useState("");
-  const [targetPrice, setTargetPrice] = useState("");
-  const [savedAmount, setSavedAmount] = useState("");
+  const [targetDisplay, setTargetDisplay] = useState("");    // ← "18.000.000"
+  const [savedDisplay, setSavedDisplay] = useState("");      // ← "5.000.000"
+  const [tabungDisplay, setTabungDisplay] = useState("");    // ← untuk modal tabung
   const [imageUrl, setImageUrl] = useState("");
   const [marketplaceUrl, setMarketplaceUrl] = useState("");
   const [priority, setPriority] = useState(3);
+  const [showTabungModal, setShowTabungModal] = useState(false);
+  const [tabungTargetId, setTabungTargetId] = useState<string | null>(null);
+  const [tabungCurrent, setTabungCurrent] = useState(0);
   const router = useRouter();
   const [userId, setUserId] = useState<string | undefined>(undefined);
   const supabase = createClient();
@@ -38,29 +54,39 @@ export default function WishlistPage() {
   }, []);
 
   function handleSave() {
-    if (!name || !targetPrice) return;
+    if (!name || !targetDisplay) return;
     addWishlist({
       name,
-      target_price: parseFloat(targetPrice),
-      saved_amount: parseFloat(savedAmount || "0"),
+      target_price: toNumber(targetDisplay),
+      saved_amount: toNumber(savedDisplay),
       image_url: imageUrl || "",
       marketplace_url: marketplaceUrl || "",
       priority,
       is_achieved: false,
     }, userId);
     setWishlists(getWishlists(userId));
-    setName(""); setTargetPrice(""); setSavedAmount("");
+    setName(""); setTargetDisplay(""); setSavedDisplay("");
     setImageUrl(""); setMarketplaceUrl(""); setPriority(3);
     setShowForm(false);
   }
 
-  function handleUpdateSaved(id: string, current: number) {
-    const input = prompt("Tambah tabungan (Rp):");
-    if (!input) return;
-    const add = parseFloat(input);
-    if (isNaN(add)) return;
-    updateWishlist(id, { saved_amount: current + add }, userId);
+  // ✅ Ganti prompt() dengan modal proper
+  function openTabung(id: string, current: number) {
+    setTabungTargetId(id);
+    setTabungCurrent(current);
+    setTabungDisplay("");
+    setShowTabungModal(true);
+  }
+
+  function handleTabungSave() {
+    if (!tabungTargetId) return;
+    const add = toNumber(tabungDisplay);
+    if (!add) return;
+    updateWishlist(tabungTargetId, { saved_amount: tabungCurrent + add }, userId);
     setWishlists(getWishlists(userId));
+    setShowTabungModal(false);
+    setTabungTargetId(null);
+    setTabungDisplay("");
   }
 
   function handleAchieve(id: string) {
@@ -120,12 +146,25 @@ export default function WishlistPage() {
             <NbInput label="Nama barang" type="text"
               placeholder="MacBook Air M4..."
               value={name} onChange={(e) => setName(e.target.value)} />
-            <NbInput label="Harga target (Rp)" type="number"
-              placeholder="18000000"
-              value={targetPrice} onChange={(e) => setTargetPrice(e.target.value)} />
-            <NbInput label="Tabungan saat ini (Rp)" type="number"
+
+            {/* ✅ Input harga dengan format titik ribuan */}
+            <NbInput
+              label="Harga target (Rp)"
+              type="text"
+              inputMode="numeric"
               placeholder="0"
-              value={savedAmount} onChange={(e) => setSavedAmount(e.target.value)} />
+              value={targetDisplay}
+              onChange={(e) => setTargetDisplay(toDisplay(e.target.value))}
+            />
+            <NbInput
+              label="Tabungan saat ini (Rp)"
+              type="text"
+              inputMode="numeric"
+              placeholder="0"
+              value={savedDisplay}
+              onChange={(e) => setSavedDisplay(toDisplay(e.target.value))}
+            />
+
             <NbInput label="URL gambar (opsional)" type="url"
               placeholder="https://..."
               value={imageUrl} onChange={(e) => setImageUrl(e.target.value)} />
@@ -151,9 +190,7 @@ export default function WishlistPage() {
               <NbButton variant="black" size="lg" onClick={handleSave} className="flex-1">
                 Simpan
               </NbButton>
-              <NbButton variant="ghost" onClick={() => setShowForm(false)}>
-                Batal
-              </NbButton>
+              <NbButton variant="ghost" onClick={() => setShowForm(false)}>Batal</NbButton>
             </div>
           </div>
         </NbCard>
@@ -169,10 +206,7 @@ export default function WishlistPage() {
           </NbCard>
         ) : (
           wishlists.map((item) => {
-            const progress = getProgress(
-              Number(item.saved_amount),
-              Number(item.target_price)
-            );
+            const progress = getProgress(Number(item.saved_amount), Number(item.target_price));
             return (
               <div key={item.id}
                 className={`border-2 border-nb-black rounded-xl shadow-[3px_3px_0px_#0A0A0A] overflow-hidden transition-all hover:-translate-y-0.5 hover:shadow-[5px_5px_0px_#0A0A0A] group ${item.is_achieved ? "bg-green-50" : "bg-white"}`}>
@@ -188,9 +222,7 @@ export default function WishlistPage() {
 
                 <div className="p-4">
                   <div className="flex items-start justify-between gap-2 mb-1">
-                    <h3 className="font-bold text-base leading-tight flex-1">
-                      {item.name}
-                    </h3>
+                    <h3 className="font-bold text-base leading-tight flex-1">{item.name}</h3>
                     {item.is_achieved && (
                       <span className="inline-flex items-center gap-1 bg-green-100 border border-green-200 rounded-md px-2 py-0.5 text-xs font-bold text-green-700 flex-shrink-0">
                         <IconCheck size={10} /> Tercapai
@@ -230,7 +262,7 @@ export default function WishlistPage() {
                     {!item.is_achieved && (
                       <>
                         <NbButton variant="green" size="sm"
-                          onClick={() => handleUpdateSaved(item.id, Number(item.saved_amount))}>
+                          onClick={() => openTabung(item.id, Number(item.saved_amount))}>
                           <IconPigMoney size={14} /> Tabung
                         </NbButton>
                         {progress >= 100 && (
@@ -260,6 +292,34 @@ export default function WishlistPage() {
           })
         )}
       </div>
+
+      {/* ✅ Modal Tabung — ganti prompt() yang tidak profesional */}
+      {showTabungModal && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/50 backdrop-blur-sm">
+          <NbCard className="max-w-sm w-full">
+            <div className="font-bold text-base mb-1">Tambah Tabungan</div>
+            <p className="text-xs text-nb-black/50 font-medium mb-4">
+              Terkumpul: {formatRupiah(tabungCurrent)}
+            </p>
+            <NbInput
+              label="Nominal (Rp)"
+              type="text"
+              inputMode="numeric"
+              placeholder="0"
+              value={tabungDisplay}
+              onChange={(e) => setTabungDisplay(toDisplay(e.target.value))}
+            />
+            <div className="flex gap-3 mt-4">
+              <NbButton variant="green" size="lg" onClick={handleTabungSave} className="flex-1">
+                <IconPigMoney size={16} /> Tabung
+              </NbButton>
+              <NbButton variant="ghost" onClick={() => setShowTabungModal(false)}>
+                Batal
+              </NbButton>
+            </div>
+          </NbCard>
+        </div>
+      )}
 
     </main>
   );
