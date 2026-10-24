@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useState, useCallback, useRef } from "react";
 import { createClient } from "@/app/lib/supabase";
 import { useRouter } from "next/navigation";
 import NbCard from "@/components/ui/NbCard";
@@ -10,12 +10,16 @@ import {
   IconUser, IconEdit, IconCheck,
   IconMail, IconCalendar, IconBolt,
   IconX, IconUpload, IconTrash, IconArrowLeft, IconLogout,
-  IconCloudUpload, IconCloudCheck, IconAlertTriangle,
+  IconCloudUpload, IconCloudDownload, IconCloudCheck, IconAlertTriangle,
+  IconDownload, IconFileImport,
 } from "@tabler/icons-react";
 import {
   getTodos, getTransactions, getWishlists,
+  saveTodos, saveTransactions, saveWishlists,
+  exportAllData, importAllData,
   type Todo, type Transaction, type Wishlist,
 } from "@/app/lib/storage";
+
 
 interface Profile {
   id: string;
@@ -44,70 +48,115 @@ export default function ProfilePage() {
   const [syncMessage, setSyncMessage] = useState("");
   const router = useRouter();
   const supabase = createClient();
+  const fileInputRef = useRef<HTMLInputElement>(null);
+  const [refreshKey, setRefreshKey] = useState(0);
+  const reloadProfile = useCallback(() => setRefreshKey((k) => k + 1), []);
 
-  useEffect(() => { loadProfile(); }, []);
+  useEffect(() => {
+    let isMounted = true;
 
-  async function loadProfile() {
-    const { data: { user } } = await supabase.auth.getUser();
-    setIsLoggedIn(!!user);
+    async function init() {
+      try {
+        const client = createClient();
+        const { data: { user } } = await client.auth.getUser();
+        if (!isMounted) return;
+        setIsLoggedIn(!!user);
 
-    if (!user) {
-      // Mode offline — baca profil dari localStorage
-      const localProfileStr = localStorage.getItem("notez_profile");
-      if (localProfileStr) {
-        const p = JSON.parse(localProfileStr);
-        setFullName(p.full_name || "");
-        setBio(p.bio || "");
-        setAvatarUrl(p.avatar_url || null);
+        if (!user) {
+          // Mode offline — baca profil dari localStorage
+          const localProfileStr = localStorage.getItem("notez_profile");
+          if (localProfileStr) {
+            try {
+              const p = JSON.parse(localProfileStr);
+              setFullName(p.full_name || "");
+              setBio(p.bio || "");
+              setAvatarUrl(p.avatar_url || null);
+            } catch {
+              // ignore
+            }
+          }
+
+          // Stats offline — key tanpa userId
+          const todos = getTodos();
+          const transactions = getTransactions();
+          const wishlists = getWishlists();
+          setStats({
+            todos: todos.length,
+            transactions: transactions.length,
+            wishlists: wishlists.length,
+          });
+          setLoading(false);
+          return;
+        }
+
+        // Mode login — baca profil dari Supabase
+        setEmail(user.email || "");
+
+        const { data: profileData, error: profileError } = await client
+          .from("profiles").select("*").eq("id", user.id).maybeSingle();
+
+        if (profileError) {
+          console.error("Gagal memuat profil:", profileError.message);
+        }
+
+        if (profileData && isMounted) {
+          setProfile(profileData);
+          setFullName(profileData.full_name || "");
+          setBio(profileData.bio || "");
+          setAvatarUrl(profileData.avatar_url || null);
+        }
+
+        // Stats saat login — baca dari localStorage dengan userId
+        const todos = getTodos(user.id);
+        const transactions = getTransactions(user.id);
+        const wishlists = getWishlists(user.id);
+        if (isMounted) {
+          setStats({
+            todos: todos.length,
+            transactions: transactions.length,
+            wishlists: wishlists.length,
+          });
+        }
+      } catch (err) {
+        console.warn("Offline mode in profile:", err);
+        if (!isMounted) return;
+        setIsLoggedIn(false);
+        const localProfileStr = localStorage.getItem("notez_profile");
+        if (localProfileStr) {
+          try {
+            const p = JSON.parse(localProfileStr);
+            setFullName(p.full_name || "");
+            setBio(p.bio || "");
+            setAvatarUrl(p.avatar_url || null);
+          } catch {
+            // ignore
+          }
+        }
+        const todos = getTodos();
+        const transactions = getTransactions();
+        const wishlists = getWishlists();
+        setStats({
+          todos: todos.length,
+          transactions: transactions.length,
+          wishlists: wishlists.length,
+        });
+      } finally {
+        if (isMounted) setLoading(false);
       }
-
-      // Stats offline — key tanpa userId
-      const todos = getTodos();
-      const transactions = getTransactions();
-      const wishlists = getWishlists();
-      setStats({
-        todos: todos.length,
-        transactions: transactions.length,
-        wishlists: wishlists.length,
-      });
-      setLoading(false);
-      return;
     }
 
-    // Mode login — baca profil dari Supabase
-    setEmail(user.email || "");
+    init();
 
-    const { data: profileData, error: profileError } = await supabase
-      .from("profiles").select("*").eq("id", user.id).maybeSingle();
+    return () => {
+      isMounted = false;
+    };
+  }, [refreshKey]);
 
-    if (profileError) {
-      console.error("Gagal memuat profil:", profileError.message);
-    }
-
-    if (profileData) {
-      setProfile(profileData);
-      setFullName(profileData.full_name || "");
-      setBio(profileData.bio || "");
-      setAvatarUrl(profileData.avatar_url || null);
-    }
-
-    // ✅ FIX: Stats saat login — baca dari localStorage dengan userId
-    const todos = getTodos(user.id);
-    const transactions = getTransactions(user.id);
-    const wishlists = getWishlists(user.id);
-    setStats({
-      todos: todos.length,
-      transactions: transactions.length,
-      wishlists: wishlists.length,
-    });
-
-    setLoading(false);
-  }
 
   // ✅ FITUR BARU: Backup/Sync ke Supabase
   async function handleSync() {
     setSyncStatus("syncing");
-    setSyncMessage("Menyinkronkan data...");
+    setSyncMessage("Menyinkronkan data ke cloud...");
 
     try {
       const { data: { user } } = await supabase.auth.getUser();
@@ -154,12 +203,97 @@ export default function ProfilePage() {
       setSyncMessage(err instanceof Error ? err.message : "Sync gagal, coba lagi.");
     }
 
-    // Reset status setelah 4 detik
     setTimeout(() => {
       setSyncStatus("idle");
       setSyncMessage("");
     }, 4000);
   }
+
+  // ✅ FITUR BARU: Restore / Tarik Data dari Cloud Supabase
+  async function handleRestoreCloud() {
+    setSyncStatus("syncing");
+    setSyncMessage("Mengunduh data dari cloud...");
+
+    try {
+      const { data: { user } } = await supabase.auth.getUser();
+      if (!user) throw new Error("Kamu harus login untuk memulihkan dari cloud.");
+
+      const { data: cloudTodos, error: todoErr } = await supabase
+        .from("todos").select("*").eq("user_id", user.id);
+      if (todoErr) throw new Error("Gagal mengambil todos: " + todoErr.message);
+
+      const { data: cloudTx, error: txErr } = await supabase
+        .from("transactions").select("*").eq("user_id", user.id);
+      if (txErr) throw new Error("Gagal mengambil transaksi: " + txErr.message);
+
+      const { data: cloudWishlists, error: wishErr } = await supabase
+        .from("wishlists").select("*").eq("user_id", user.id);
+      if (wishErr) throw new Error("Gagal mengambil wishlist: " + wishErr.message);
+
+      if (cloudTodos) saveTodos(cloudTodos, user.id);
+      if (cloudTx) saveTransactions(cloudTx, user.id);
+      if (cloudWishlists) saveWishlists(cloudWishlists, user.id);
+
+      const total = (cloudTodos?.length || 0) + (cloudTx?.length || 0) + (cloudWishlists?.length || 0);
+      setSyncStatus("success");
+      setSyncMessage(`Berhasil memulihkan ${total} item dari cloud!`);
+      setStats({
+        todos: cloudTodos?.length || 0,
+        transactions: cloudTx?.length || 0,
+        wishlists: cloudWishlists?.length || 0,
+      });
+    } catch (err: unknown) {
+      setSyncStatus("error");
+      setSyncMessage(err instanceof Error ? err.message : "Gagal memulihkan dari cloud.");
+    }
+
+    setTimeout(() => {
+      setSyncStatus("idle");
+      setSyncMessage("");
+    }, 4000);
+  }
+
+  // ✅ FITUR BARU: Ekspor Data ke File JSON
+  function handleExportBackup() {
+    try {
+      const { data: { user } } = { data: { user: profile } };
+      const uid = user?.id;
+      const jsonStr = exportAllData(uid);
+      const blob = new Blob([jsonStr], { type: "application/json" });
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement("a");
+      const dateStr = new Date().toISOString().split("T")[0];
+      a.href = url;
+      a.download = `NoteZ_backup_${dateStr}.json`;
+      a.click();
+      URL.revokeObjectURL(url);
+    } catch (err) {
+      console.error("Gagal mengekspor data cadangan:", err);
+    }
+  }
+
+  // ✅ FITUR BARU: Impor Data dari File JSON
+  function handleImportBackup(e: React.ChangeEvent<HTMLInputElement>) {
+    const file = e.target.files?.[0];
+    if (!file) return;
+
+    const reader = new FileReader();
+    reader.onload = (event) => {
+      const content = event.target?.result as string;
+      if (!content) return;
+      const uid = profile?.id;
+      const res = importAllData(content, uid);
+      if (res.success) {
+        alert(`Berhasil memulihkan ${res.count} item data cadangan!`);
+        reloadProfile();
+      } else {
+        alert("Gagal memulihkan: " + res.error);
+      }
+    };
+    reader.readAsText(file);
+    e.target.value = "";
+  }
+
 
   async function handleSave() {
     setSaving(true);
@@ -173,10 +307,11 @@ export default function ProfilePage() {
       }));
       setEditing(false);
       setSaving(false);
-      loadProfile();
+      reloadProfile();
       window.dispatchEvent(new Event("profileUpdated"));
       return;
     }
+
 
     let { data, error } = await supabase.from("profiles").update({
       full_name: fullName,
@@ -429,9 +564,10 @@ export default function ProfilePage() {
               <NbButton variant="black" size="lg" onClick={handleSave} disabled={saving} className="flex-1">
                 {saving ? "Menyimpan..." : <><IconCheck size={16} /> Simpan</>}
               </NbButton>
-              <NbButton variant="ghost" onClick={() => { setEditing(false); loadProfile(); }}>
+              <NbButton variant="ghost" onClick={() => { setEditing(false); reloadProfile(); }}>
                 Batal
               </NbButton>
+
             </div>
           </div>
         </NbCard>
@@ -441,12 +577,12 @@ export default function ProfilePage() {
         </NbButton>
       )}
 
-      {/* ✅ BACKUP/SYNC — hanya tampil saat login */}
+      {/* ✅ BACKUP/SYNC CLOUD — hanya tampil saat login */}
       {isLoggedIn && (
         <NbCard className="mb-4">
-          <div className="font-bold text-sm mb-1">Backup & Sinkronisasi</div>
+          <div className="font-bold text-sm mb-1">Sinkronisasi Cloud (Supabase)</div>
           <p className="text-xs text-nb-black/50 font-medium mb-3">
-            Kirim semua data lokal (todos, transaksi, wishlist) ke cloud Supabase.
+            Sinkronkan data tugas, keuangan, dan wishlist Anda dengan database akun.
           </p>
 
           {/* Status feedback */}
@@ -463,26 +599,64 @@ export default function ProfilePage() {
             </div>
           )}
 
-          <NbButton
-            variant="blue"
-            size="lg"
-            className="w-full"
-            onClick={handleSync}
-            disabled={syncStatus === "syncing"}
-          >
-            {syncStatus === "syncing" ? (
-              <>
-                <span className="animate-spin inline-block w-4 h-4 border-2 border-white border-t-transparent rounded-full" />
-                Menyinkronkan...
-              </>
-            ) : syncStatus === "success" ? (
-              <><IconCloudCheck size={18} /> Backup Berhasil!</>
-            ) : (
-              <><IconCloudUpload size={18} /> Backup ke Cloud</>
-            )}
-          </NbButton>
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
+            <NbButton
+              variant="blue"
+              size="md"
+              className="w-full"
+              onClick={handleSync}
+              disabled={syncStatus === "syncing"}
+            >
+              <IconCloudUpload size={18} /> Kirim ke Cloud
+            </NbButton>
+            <NbButton
+              variant="ghost"
+              size="md"
+              className="w-full border-2 border-nb-black hover:bg-neutral-100"
+              onClick={handleRestoreCloud}
+              disabled={syncStatus === "syncing"}
+            >
+              <IconCloudDownload size={18} /> Tarik dari Cloud
+            </NbButton>
+          </div>
         </NbCard>
       )}
+
+      {/* ✅ BACKUP & RESTORE FILE JSON (OFFLINE / LOKAL) */}
+      <NbCard className="mb-4">
+        <div className="font-bold text-sm mb-1">Cadangan File Lokal (.JSON)</div>
+        <p className="text-xs text-nb-black/50 font-medium mb-3">
+          Simpan cadangan mandiri ke penyimpanan perangkat Anda tanpa memerlukan koneksi internet.
+        </p>
+
+        {/* Hidden File Input */}
+        <input
+          type="file"
+          ref={fileInputRef}
+          onChange={handleImportBackup}
+          accept=".json,application/json"
+          className="hidden"
+        />
+
+        <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
+          <NbButton
+            variant="ghost"
+            size="md"
+            className="w-full border-2 border-nb-black bg-white hover:bg-nb-yellow"
+            onClick={handleExportBackup}
+          >
+            <IconDownload size={18} /> Unduh File Cadangan
+          </NbButton>
+          <NbButton
+            variant="ghost"
+            size="md"
+            className="w-full border-2 border-nb-black bg-white hover:bg-neutral-100"
+            onClick={() => fileInputRef.current?.click()}
+          >
+            <IconFileImport size={18} /> Pulihkan dari File
+          </NbButton>
+        </div>
+      </NbCard>
 
       {/* Login Prompt for Offline Users */}
       {!isLoggedIn && (

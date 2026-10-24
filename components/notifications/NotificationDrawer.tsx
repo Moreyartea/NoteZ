@@ -157,16 +157,16 @@ export default function NotificationDrawer({
 
           {/* Filter Tabs */}
           <div className="flex items-center gap-1.5 overflow-x-auto pb-1 text-xs font-black">
-            {[
+            {([
               { id: "all", label: "Semua" },
               { id: "unread", label: `Belum Dibaca (${unreadCount})` },
               { id: "todo", label: "Tugas" },
               { id: "finance", label: "Keuangan" },
               { id: "wishlist", label: "Wishlist" },
-            ].map((tab) => (
+            ] as const).map((tab) => (
               <button
                 key={tab.id}
-                onClick={() => setFilter(tab.id as any)}
+                onClick={() => setFilter(tab.id)}
                 className={`px-3 py-1.5 rounded-lg border-2 whitespace-nowrap cursor-pointer transition-all ${
                   filter === tab.id
                     ? "bg-nb-black text-white border-nb-black shadow-[2px_2px_0px_#FFE135]"

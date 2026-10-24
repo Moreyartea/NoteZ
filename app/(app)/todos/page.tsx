@@ -35,13 +35,12 @@ export default function TodosPage() {
   const [filter, setFilter] = useState<"all" | "active" | "done">("all");
   const router = useRouter();
   const [userId, setUserId] = useState<string | undefined>(undefined);
-  const supabase = createClient();
 
   useEffect(() => {
     async function init() {
       let uid: string | undefined = undefined;
       try {
-        const { data: { user } } = await supabase.auth.getUser();
+        const { data: { user } } = await createClient().auth.getUser();
         uid = user?.id;
       } catch (err) {
         console.warn("Offline mode in todos:", err);

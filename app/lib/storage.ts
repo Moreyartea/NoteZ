@@ -213,4 +213,65 @@ export function deleteNotification(id: string, userId?: string): void {
 
 export function clearAllNotifications(userId?: string): void {
   saveNotifications([], userId);
-}
+}
+
+// ============ BACKUP & RESTORE JSON ============
+export interface BackupData {
+  version: string;
+  exported_at: string;
+  todos: Todo[];
+  transactions: Transaction[];
+  wishlists: Wishlist[];
+  notifications: NotificationItem[];
+}
+
+export function exportAllData(userId?: string): string {
+  const data: BackupData = {
+    version: "1.1",
+    exported_at: new Date().toISOString(),
+    todos: getTodos(userId),
+    transactions: getTransactions(userId),
+    wishlists: getWishlists(userId),
+    notifications: getNotifications(userId),
+  };
+  return JSON.stringify(data, null, 2);
+}
+
+export function importAllData(
+  jsonString: string,
+  userId?: string
+): { success: boolean; count: number; error?: string } {
+  try {
+    const parsed = JSON.parse(jsonString) as Partial<BackupData>;
+    if (!parsed || (!parsed.todos && !parsed.transactions && !parsed.wishlists)) {
+      return { success: false, count: 0, error: "Format file cadangan tidak valid." };
+    }
+
+    let count = 0;
+    if (Array.isArray(parsed.todos)) {
+      saveTodos(parsed.todos, userId);
+      count += parsed.todos.length;
+    }
+    if (Array.isArray(parsed.transactions)) {
+      saveTransactions(parsed.transactions, userId);
+      count += parsed.transactions.length;
+    }
+    if (Array.isArray(parsed.wishlists)) {
+      saveWishlists(parsed.wishlists, userId);
+      count += parsed.wishlists.length;
+    }
+    if (Array.isArray(parsed.notifications)) {
+      saveNotifications(parsed.notifications, userId);
+      count += parsed.notifications.length;
+    }
+
+    if (typeof window !== "undefined") {
+      window.dispatchEvent(new Event("notificationsUpdated"));
+    }
+
+    return { success: true, count };
+  } catch (e) {
+    return { success: false, count: 0, error: e instanceof Error ? e.message : "Gagal memproses file JSON." };
+  }
+}
+

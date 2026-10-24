@@ -29,17 +29,23 @@ interface Props {
 }
 
 export default function NotificationSettingsModal({ isOpen, onClose, userId }: Props) {
-  const [settings, setSettings] = useState<NotificationSettings>(getNotificationSettings(userId));
-  const [permissionState, setPermissionState] = useState<NotificationPermission | "unsupported">("default");
+  const [settings, setSettings] = useState<NotificationSettings>(() => getNotificationSettings(userId));
+  const [permissionState, setPermissionState] = useState<NotificationPermission | "unsupported">(() =>
+    getDeviceNotificationPermissionState()
+  );
   const [testSent, setTestSent] = useState(false);
 
   useEffect(() => {
-    if (isOpen) {
+    function handleSync() {
       setSettings(getNotificationSettings(userId));
       setPermissionState(getDeviceNotificationPermissionState());
-      setTestSent(false);
     }
-  }, [isOpen, userId]);
+
+    window.addEventListener("notificationSettingsUpdated", handleSync);
+    return () => {
+      window.removeEventListener("notificationSettingsUpdated", handleSync);
+    };
+  }, [userId]);
 
   if (!isOpen) return null;
 

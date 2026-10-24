@@ -11,7 +11,8 @@ export default function SplashScreen() {
       router.push("/dashboard");
     }, 2500);
     return () => clearTimeout(timer);
-  }, []);
+  }, [router]);
+
 
   return (
     <main className="min-h-screen bg-nb-black flex flex-col items-center justify-center p-8">

@@ -21,7 +21,6 @@ const NAV_ITEMS = [
 export default function AppLayout({ children }: { children: React.ReactNode }) {
   const pathname = usePathname();
   const router = useRouter();
-  const supabase = createClient();
   const [avatarUrl, setAvatarUrl] = useState<string | null>(null);
   const [userId, setUserId] = useState<string | undefined>(undefined);
 
@@ -30,9 +29,11 @@ export default function AppLayout({ children }: { children: React.ReactNode }) {
 
     async function fetchAvatar() {
       try {
+        const supabase = createClient();
         const { data: { user } } = await supabase.auth.getUser();
         if (!isMounted) return;
         setUserId(user?.id);
+
 
         if (!user) {
           const localProfileStr = localStorage.getItem("notez_profile");
