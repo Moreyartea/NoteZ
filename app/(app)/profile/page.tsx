@@ -1,8 +1,9 @@
 "use client";
 
 import { useEffect, useState, useCallback, useRef } from "react";
-import { createClient } from "@/app/lib/supabase";
+import { createClient, getCurrentUser } from "@/app/lib/supabase";
 import { useRouter } from "next/navigation";
+
 import NbCard from "@/components/ui/NbCard";
 import NbButton from "@/components/ui/NbButton";
 import NbInput from "@/components/ui/NbInput";
@@ -57,10 +58,10 @@ export default function ProfilePage() {
 
     async function init() {
       try {
-        const client = createClient();
-        const { data: { user } } = await client.auth.getUser();
+        const user = await getCurrentUser();
         if (!isMounted) return;
         setIsLoggedIn(!!user);
+
 
         if (!user) {
           // Mode offline — baca profil dari localStorage
@@ -92,8 +93,9 @@ export default function ProfilePage() {
         // Mode login — baca profil dari Supabase
         setEmail(user.email || "");
 
-        const { data: profileData, error: profileError } = await client
+        const { data: profileData, error: profileError } = await supabase
           .from("profiles").select("*").eq("id", user.id).maybeSingle();
+
 
         if (profileError) {
           console.error("Gagal memuat profil:", profileError.message);

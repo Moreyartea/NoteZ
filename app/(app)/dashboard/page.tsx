@@ -8,7 +8,7 @@ import {
   IconChartBar, IconWallet, IconHeart,
 } from "@tabler/icons-react";
 import { getTodos, getTransactions, getWishlists } from "@/app/lib/storage";
-import { createClient } from "@/app/lib/supabase";
+import { getCurrentUser } from "@/app/lib/supabase";
 
 export default function DashboardPage() {
   const [todoCount, setTodoCount] = useState(0);
@@ -22,11 +22,12 @@ export default function DashboardPage() {
     async function init() {
       let uid: string | undefined = undefined;
       try {
-        const { data: { user } } = await createClient().auth.getUser();
+        const user = await getCurrentUser();
         uid = user?.id;
       } catch (err) {
         console.warn("Offline mode or Supabase not reachable:", err);
       } finally {
+
         const todos = getTodos(uid);
         const todayStr = new Date().toISOString().split("T")[0];
         const todayTodos = todos.filter((t) => t.created_at.startsWith(todayStr));

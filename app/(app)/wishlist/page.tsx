@@ -12,8 +12,9 @@ import {
 import {
   Wishlist, getWishlists, addWishlist, updateWishlist, deleteWishlist,
 } from "@/app/lib/storage";
-import { createClient } from "@/app/lib/supabase";
+import { getCurrentUser } from "@/app/lib/supabase";
 import { checkAndTriggerSmartNotifications } from "@/app/lib/notificationEngine";
+
 
 
 // ─── Helpers format Rupiah ───────────────────────────────────────────────────
@@ -48,7 +49,7 @@ export default function WishlistPage() {
     async function init() {
       let uid: string | undefined = undefined;
       try {
-        const { data: { user } } = await createClient().auth.getUser();
+        const user = await getCurrentUser();
         uid = user?.id;
       } catch (err) {
         console.warn("Offline mode in wishlist:", err);

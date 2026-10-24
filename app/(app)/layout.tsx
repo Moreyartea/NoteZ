@@ -2,7 +2,7 @@
 
 import { useEffect, useState } from "react";
 import { usePathname, useRouter } from "next/navigation";
-import { createClient } from "@/app/lib/supabase";
+import { getCurrentUser, createClient } from "@/app/lib/supabase";
 import {
   IconChecklist, IconCoin, IconGift,
   IconUser, IconLayoutDashboard,
@@ -29,11 +29,9 @@ export default function AppLayout({ children }: { children: React.ReactNode }) {
 
     async function fetchAvatar() {
       try {
-        const supabase = createClient();
-        const { data: { user } } = await supabase.auth.getUser();
+        const user = await getCurrentUser();
         if (!isMounted) return;
         setUserId(user?.id);
-
 
         if (!user) {
           const localProfileStr = localStorage.getItem("notez_profile");
@@ -48,11 +46,17 @@ export default function AppLayout({ children }: { children: React.ReactNode }) {
           return;
         }
 
-        const { data } = await supabase.from("profiles").select("avatar_url").eq("id", user.id).maybeSingle();
-        if (!isMounted) return;
-        setAvatarUrl(data?.avatar_url || null);
+        try {
+          const supabase = createClient();
+          const { data } = await supabase.from("profiles").select("avatar_url").eq("id", user.id).maybeSingle();
+          if (!isMounted) return;
+          setAvatarUrl(data?.avatar_url || null);
+        } catch {
+          // offline
+        }
       } catch (err) {
         console.warn("Offline or Supabase unreachable in layout:", err);
+
         if (!isMounted) return;
         const localProfileStr = localStorage.getItem("notez_profile");
         if (localProfileStr) {

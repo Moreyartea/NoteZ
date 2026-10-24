@@ -14,8 +14,9 @@ import {
 import {
   Transaction, getTransactions, addTransaction, deleteTransaction,
 } from "@/app/lib/storage";
-import { createClient } from "@/app/lib/supabase";
+import { getCurrentUser } from "@/app/lib/supabase";
 import { checkAndTriggerSmartNotifications } from "@/app/lib/notificationEngine";
+
 
 
 const INCOME_CATEGORIES = ["Gaji", "Freelance", "Bisnis", "Investasi", "Hadiah", "Lainnya"];
@@ -64,7 +65,7 @@ export default function FinancePage() {
     async function init() {
       let uid: string | undefined = undefined;
       try {
-        const { data: { user } } = await createClient().auth.getUser();
+        const user = await getCurrentUser();
         uid = user?.id;
       } catch (err) {
         console.warn("Offline mode in finance:", err);
