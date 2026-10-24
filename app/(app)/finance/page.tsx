@@ -15,6 +15,8 @@ import {
   Transaction, getTransactions, addTransaction, deleteTransaction,
 } from "@/app/lib/storage";
 import { createClient } from "@/app/lib/supabase";
+import { checkAndTriggerSmartNotifications } from "@/app/lib/notificationEngine";
+
 
 const INCOME_CATEGORIES = ["Gaji", "Freelance", "Bisnis", "Investasi", "Hadiah", "Lainnya"];
 const EXPENSE_CATEGORIES = ["Makanan", "Transport", "Belanja", "Tagihan", "Hiburan", "Kesehatan", "Pendidikan", "Lainnya"];
@@ -61,13 +63,20 @@ export default function FinancePage() {
 
   useEffect(() => {
     async function init() {
-      const { data: { user } } = await supabase.auth.getUser();
-      const uid = user?.id;
-      setUserId(uid);
-      setTransactions(getTransactions(uid));
+      let uid: string | undefined = undefined;
+      try {
+        const { data: { user } } = await supabase.auth.getUser();
+        uid = user?.id;
+      } catch (err) {
+        console.warn("Offline mode in finance:", err);
+      } finally {
+        setUserId(uid);
+        setTransactions(getTransactions(uid));
+      }
     }
     init();
   }, []);
+
 
   function handleAmountChange(e: React.ChangeEvent<HTMLInputElement>) {
     setAmountDisplay(toDisplay(e.target.value));
@@ -84,6 +93,7 @@ export default function FinancePage() {
     setAmountDisplay(""); setCategory(""); setNote("");
     setDate(new Date().toISOString().split("T")[0]);
     setShowForm(false);
+    checkAndTriggerSmartNotifications(userId);
   }
 
   function handleDelete(id: string) {

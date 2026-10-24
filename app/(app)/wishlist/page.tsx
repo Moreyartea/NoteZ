@@ -13,6 +13,8 @@ import {
   Wishlist, getWishlists, addWishlist, updateWishlist, deleteWishlist,
 } from "@/app/lib/storage";
 import { createClient } from "@/app/lib/supabase";
+import { checkAndTriggerSmartNotifications } from "@/app/lib/notificationEngine";
+
 
 // ─── Helpers format Rupiah ───────────────────────────────────────────────────
 function toDisplay(raw: string): string {
@@ -45,13 +47,20 @@ export default function WishlistPage() {
 
   useEffect(() => {
     async function init() {
-      const { data: { user } } = await supabase.auth.getUser();
-      const uid = user?.id;
-      setUserId(uid);
-      setWishlists(getWishlists(uid));
+      let uid: string | undefined = undefined;
+      try {
+        const { data: { user } } = await supabase.auth.getUser();
+        uid = user?.id;
+      } catch (err) {
+        console.warn("Offline mode in wishlist:", err);
+      } finally {
+        setUserId(uid);
+        setWishlists(getWishlists(uid));
+      }
     }
     init();
   }, []);
+
 
   function handleSave() {
     if (!name || !targetDisplay) return;
@@ -68,6 +77,7 @@ export default function WishlistPage() {
     setName(""); setTargetDisplay(""); setSavedDisplay("");
     setImageUrl(""); setMarketplaceUrl(""); setPriority(3);
     setShowForm(false);
+    checkAndTriggerSmartNotifications(userId);
   }
 
   // ✅ Ganti prompt() dengan modal proper
@@ -87,6 +97,7 @@ export default function WishlistPage() {
     setShowTabungModal(false);
     setTabungTargetId(null);
     setTabungDisplay("");
+    checkAndTriggerSmartNotifications(userId);
   }
 
   function handleAchieve(id: string) {

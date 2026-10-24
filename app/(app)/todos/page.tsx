@@ -13,6 +13,8 @@ import {
   Todo, getTodos, addTodo, updateTodo, deleteTodo,
 } from "@/app/lib/storage";
 import { createClient } from "@/app/lib/supabase";
+import { checkAndTriggerSmartNotifications } from "@/app/lib/notificationEngine";
+
 
 const PRIORITY_CONFIG = {
   high: { bg: "bg-red-100", dot: "bg-red-500", label: "Tinggi" },
@@ -37,13 +39,20 @@ export default function TodosPage() {
 
   useEffect(() => {
     async function init() {
-      const { data: { user } } = await supabase.auth.getUser();
-      const uid = user?.id;
-      setUserId(uid);
-      setTodos(getTodos(uid));
+      let uid: string | undefined = undefined;
+      try {
+        const { data: { user } } = await supabase.auth.getUser();
+        uid = user?.id;
+      } catch (err) {
+        console.warn("Offline mode in todos:", err);
+      } finally {
+        setUserId(uid);
+        setTodos(getTodos(uid));
+      }
     }
     init();
   }, []);
+
 
   function handleSave() {
     if (!title) return;
@@ -52,11 +61,13 @@ export default function TodosPage() {
     setTitle(""); setDescription(""); setPriority("med");
     setCategory(""); setDeadline("");
     setShowForm(false);
+    checkAndTriggerSmartNotifications(userId);
   }
 
   function handleToggle(id: string, is_done: boolean) {
     updateTodo(id, { is_done: !is_done }, userId);
     setTodos(getTodos(userId));
+    checkAndTriggerSmartNotifications(userId);
   }
 
   function handleDelete(id: string) {

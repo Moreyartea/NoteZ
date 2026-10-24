@@ -20,28 +20,33 @@ export default function DashboardPage() {
 
   useEffect(() => {
     async function init() {
-      const { data: { user } } = await createClient().auth.getUser();
-      const uid = user?.id;
+      let uid: string | undefined = undefined;
+      try {
+        const { data: { user } } = await createClient().auth.getUser();
+        uid = user?.id;
+      } catch (err) {
+        console.warn("Offline mode or Supabase not reachable:", err);
+      } finally {
+        const todos = getTodos(uid);
+        const todayStr = new Date().toISOString().split("T")[0];
+        const todayTodos = todos.filter((t) => t.created_at.startsWith(todayStr));
+        setTodoCount(todayTodos.length);
+        setDoneCount(todayTodos.filter((t) => t.is_done).length);
 
-      const todos = getTodos(uid);
-      const todayStr = new Date().toISOString().split("T")[0];
-      const todayTodos = todos.filter((t) => t.created_at.startsWith(todayStr));
-      setTodoCount(todayTodos.length);
-      setDoneCount(todayTodos.filter((t) => t.is_done).length);
+        const transactions = getTransactions(uid);
+        const total = transactions.reduce((acc, tx) =>
+          tx.type === "income" ? acc + Number(tx.amount) : acc - Number(tx.amount), 0
+        );
+        setBalance(total);
 
-      const transactions = getTransactions(uid);
-      const total = transactions.reduce((acc, tx) =>
-        tx.type === "income" ? acc + Number(tx.amount) : acc - Number(tx.amount), 0
-      );
-      setBalance(total);
-
-      const wishlists = getWishlists(uid);
-      setWishlistCount(wishlists.filter((w) => !w.is_achieved).length);
-
-      setLoading(false);
+        const wishlists = getWishlists(uid);
+        setWishlistCount(wishlists.filter((w) => !w.is_achieved).length);
+        setLoading(false);
+      }
     }
     init();
   }, []);
+
 
   function formatRupiah(amount: number) {
     return new Intl.NumberFormat("id-ID", {
