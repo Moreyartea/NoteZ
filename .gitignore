@@ -49,6 +49,8 @@ next-env.d.ts
 *.ntvs*
 *.njsproj
 *.swp
+CLAUDE.md
+
 
 # OS Files
 Thumbs.db
